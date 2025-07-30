@@ -86,7 +86,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get options flow for this handler."""
-        return OptionsFlowHandler()
+        return OptionsFlowHandler(config_entry)
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -209,11 +209,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow for the Home Assistant remote integration."""
 
+    def __init__(self, config_entry):
+        """Initialize remote_homeassistant options flow."""
+        self.config_entry = config_entry
+        self.filters : list[Any] | None = None
+        self.events : set[Any] | None = None
+        self.options : dict[str, Any] | None = None
+
     async def async_step_init(self, user_input : dict[str, str] | None = None):
         """Manage basic options."""
-        # Initialize instance variables
-        if not hasattr(self, 'options'):
-            self.options = None
+        _LOGGER.debug("OptionsFlow async_step_init called for entry %s", self.config_entry.entry_id)
         
         if self.config_entry.unique_id == REMOTE_ID:
             return self.async_abort(reason="not_supported")
@@ -353,10 +358,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_general_filters(self, user_input=None):
         """Manage domain and entity filters."""
-        # Initialize filters if not exists
-        if not hasattr(self, 'filters'):
-            self.filters = None
-        
         if user_input is not None:
             # Continue to next step if entity id is not specified
             if CONF_ENTITY_ID not in user_input:
@@ -399,10 +400,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_events(self, user_input=None):
         """Manage event options."""
-        # Initialize events if not exists
-        if not hasattr(self, 'events'):
-            self.events = None
-            
         if user_input is not None:
             if ADD_NEW_EVENT not in user_input and self.options is not None:
                 self.options[CONF_SUBSCRIBE_EVENTS] = user_input.get(

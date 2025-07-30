@@ -29,8 +29,6 @@ def create_searchable_selector(
             "options": options,
             "multiple": True,
             "mode": "dropdown",
-            "custom_value": False,
-            "sort": False,  # We'll handle sorting ourselves
         }
     }
 
