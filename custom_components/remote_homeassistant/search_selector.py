@@ -25,15 +25,13 @@ def create_searchable_selector(
 ) -> dict[str, Any]:
     """Create a searchable multi-select configuration."""
     return {
-        "type": "select",
-        "options": options,
-        "multiple": True,
-        "mode": "dropdown",
-        "custom_value": False,
-        "sort": False,  # We'll handle sorting ourselves
-        "translation_key": "searchable_select",
-        "placeholder": placeholder,
-        "default": selected or [],
+        "select": {
+            "options": options,
+            "multiple": True,
+            "mode": "dropdown",
+            "custom_value": False,
+            "sort": False,  # We'll handle sorting ourselves
+        }
     }
 
 
