@@ -211,6 +211,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize remote_homeassistant options flow."""
+        _LOGGER.debug("OptionsFlowHandler __init__ called with entry: %s", config_entry.entry_id if config_entry else "None")
         self.config_entry = config_entry
         self.filters : list[Any] | None = None
         self.events : set[Any] | None = None
@@ -218,10 +219,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input : dict[str, str] | None = None):
         """Manage basic options."""
-        _LOGGER.debug("OptionsFlow async_step_init called for entry %s", self.config_entry.entry_id)
-        
-        if self.config_entry.unique_id == REMOTE_ID:
-            return self.async_abort(reason="not_supported")
+        try:
+            _LOGGER.debug("OptionsFlow async_step_init called for entry %s", self.config_entry.entry_id)
+            
+            if self.config_entry.unique_id == REMOTE_ID:
+                _LOGGER.debug("Aborting options flow for remote node")
+                return self.async_abort(reason="not_supported")
+        except Exception as e:
+            _LOGGER.error("Error in async_step_init: %s", e, exc_info=True)
+            raise
         
         if user_input is not None:
             self.options = user_input.copy()
