@@ -96,7 +96,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         debug_log("Domain: %s", config_entry.domain)
         debug_log("Creating OptionsFlowHandler for entry")
         
-        return OptionsFlowHandler(config_entry)
+        # Log handler type to ensure it's correct
+        handler = OptionsFlowHandler(config_entry)
+        debug_log("Handler created: %s", type(handler))
+        debug_log("Handler is OptionsFlow: %s", isinstance(handler, config_entries.OptionsFlow))
+        debug_log("Handler MRO: %s", [cls.__name__ for cls in type(handler).__mro__])
+        return handler
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -238,14 +243,24 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input : dict[str, str] | None = None):
         """Manage basic options."""
+        debug_log("\n=== ASYNC_STEP_INIT CALLED ===")
+        debug_log("user_input: %s", user_input)
+        debug_log("config_entry exists: %s", hasattr(self, 'config_entry'))
+        
         try:
             _LOGGER.debug("OptionsFlow async_step_init called for entry %s", self.config_entry.entry_id)
+            debug_log("Entry ID in init: %s", self.config_entry.entry_id)
+            debug_log("Unique ID in init: %s", self.config_entry.unique_id)
             
             if self.config_entry.unique_id == REMOTE_ID:
                 _LOGGER.debug("Aborting options flow for remote node")
+                debug_log("ABORTING: Remote node detected")
                 return self.async_abort(reason="not_supported")
+            
+            debug_log("Proceeding with options flow...")
         except Exception as e:
             _LOGGER.error("Error in async_step_init: %s", e, exc_info=True)
+            debug_log("ERROR in async_step_init: %s", str(e))
             raise
         
         if user_input is not None:

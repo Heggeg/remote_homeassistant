@@ -214,7 +214,8 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
     entries = hass.config_entries.async_entries(DOMAIN)
     debug_log("Found %d config entries for domain %s", len(entries), DOMAIN)
     for entry in entries:
-        debug_log("  Entry: %s (unique_id: %s, title: %s)", entry.entry_id, entry.unique_id, entry.title)
+        debug_log("  Entry: %s (unique_id: %s, title: %s, state: %s)", 
+                 entry.entry_id, entry.unique_id, entry.title, entry.state)
     
     # Register the discovery view for all instances
     hass.http.register_view(DiscoveryInfoView())
