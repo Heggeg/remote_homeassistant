@@ -78,6 +78,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_PUSH
+    
+    @staticmethod
+    @callback  
+    def async_supports_options_flow(config_entry):
+        """Return options flow support for this handler."""
+        debug_log("\n=== ASYNC_SUPPORTS_OPTIONS_FLOW CALLED ===")
+        debug_log("Entry ID: %s", config_entry.entry_id)
+        debug_log("Unique ID: %s", config_entry.unique_id)
+        # Options are not supported for remote node entries
+        supports = config_entry.unique_id != REMOTE_ID
+        debug_log("Supports options: %s", supports)
+        return supports
 
     def __init__(self):
         """Initialize a new ConfigFlow."""
@@ -227,10 +239,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         """Initialize remote_homeassistant options flow."""
         _LOGGER.debug("OptionsFlowHandler __init__ called with entry: %s", config_entry.entry_id if config_entry else "None")
-        self.config_entry = config_entry
-        self.filters : list[Any] | None = None
-        self.events : set[Any] | None = None
-        self.options : dict[str, Any] | None = None
+        debug_log("\n=== OPTIONSFLOWHANDLER INIT ===")
+        debug_log("Entry ID: %s", config_entry.entry_id if config_entry else "None")
+        debug_log("Entry exists: %s", config_entry is not None)
+        
+        try:
+            self.config_entry = config_entry
+            self.filters : list[Any] | None = None
+            self.events : set[Any] | None = None
+            self.options : dict[str, Any] | None = None
+            debug_log("OptionsFlowHandler initialized successfully")
+        except Exception as e:
+            debug_log("ERROR in OptionsFlowHandler init: %s", str(e))
+            raise
 
     async def async_step_init(self, user_input : dict[str, str] | None = None):
         """Manage basic options."""
