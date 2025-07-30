@@ -52,6 +52,7 @@ from .const import (CONF_EXCLUDE_DOMAINS, CONF_EXCLUDE_ENTITIES,
                     DOMAIN, REMOTE_ID, DEFAULT_MAX_MSG_SIZE)
 from .proxy_services import ProxyServices
 from .rest_api import UnsupportedVersion, async_get_discovery_info
+from .debug_logger import debug_log
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -207,9 +208,17 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
     hass.data.setdefault(DOMAIN, {})
     
     _LOGGER.info("Remote HA async_setup called")
+    debug_log("=== REMOTE HA ASYNC_SETUP CALLED ===")
+    
+    # List all config entries for this domain
+    entries = hass.config_entries.async_entries(DOMAIN)
+    debug_log("Found %d config entries for domain %s", len(entries), DOMAIN)
+    for entry in entries:
+        debug_log("  Entry: %s (unique_id: %s, title: %s)", entry.entry_id, entry.unique_id, entry.title)
     
     # Register the discovery view for all instances
     hass.http.register_view(DiscoveryInfoView())
+    debug_log("Discovery view registered")
 
     async def _handle_reload(service):
         """Handle reload service call."""
@@ -251,13 +260,21 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Remote Home-Assistant from a config entry."""
     _LOGGER.info("Setting up Remote HA entry: %s (unique_id: %s)", entry.entry_id, entry.unique_id)
+    debug_log("\n=== ASYNC_SETUP_ENTRY CALLED ===")
+    debug_log("Entry ID: %s", entry.entry_id)
+    debug_log("Unique ID: %s", entry.unique_id)
+    debug_log("Title: %s", entry.title)
+    debug_log("Domain: %s", entry.domain)
+    
     _async_import_options_from_yaml(hass, entry)
     if entry.unique_id == REMOTE_ID:
         _LOGGER.info("Setting up as remote node")
+        debug_log("This is a REMOTE NODE entry - no options flow supported")
         hass.async_create_task(setup_remote_instance(hass))
         return True
     else:
         _LOGGER.info("Setting up remote connection for entry: %s", entry.entry_id)
+        debug_log("Setting up MAIN instance with remote connection")
         remote = RemoteConnection(hass, entry)
 
         hass.data[DOMAIN][entry.entry_id] = {

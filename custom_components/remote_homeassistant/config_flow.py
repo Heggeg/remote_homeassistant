@@ -32,6 +32,7 @@ from .search_selector import (
     create_entity_search_selector,
     create_domain_search_selector,
 )
+from .debug_logger import debug_log
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,9 +89,18 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get options flow for this handler."""
         _LOGGER.debug("async_get_options_flow called for entry: %s (unique_id: %s)", 
                      config_entry.entry_id, config_entry.unique_id)
+        debug_log("\n=== ASYNC_GET_OPTIONS_FLOW CALLED ===")
+        debug_log("Entry ID: %s", config_entry.entry_id)
+        debug_log("Unique ID: %s", config_entry.unique_id)
+        debug_log("Title: %s", config_entry.title)
+        debug_log("Domain: %s", config_entry.domain)
+        
         if config_entry.unique_id == REMOTE_ID:
             _LOGGER.warning("Options flow not supported for remote node configuration")
+            debug_log("ABORTING: This is a remote node configuration")
             return None
+        
+        debug_log("Creating OptionsFlowHandler for entry")
         return OptionsFlowHandler(config_entry)
 
     async def async_step_user(self, user_input=None):
