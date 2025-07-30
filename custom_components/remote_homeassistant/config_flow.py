@@ -26,6 +26,7 @@ from .const import (CONF_ENTITY_PREFIX,  # pylint:disable=unused-import
                     CONF_SUBSCRIBE_EVENTS, DOMAIN, REMOTE_ID, DEFAULT_MAX_MSG_SIZE)
 from .rest_api import (ApiProblem, CannotConnect, EndpointMissing, InvalidAuth,
                        UnsupportedVersion, async_get_discovery_info)
+from homeassistant.helpers import selector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -226,6 +227,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             CONF_REMOTE_CONNECTION
         ]
 
+        # Create service options with domain grouping for better organization
+        service_options = self._create_grouped_options(remote.proxy_services.services, group_by_domain=True)
+        domain_options = [{"value": d, "label": d} for d in sorted(domains)]
+        
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
@@ -249,16 +254,33 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_LOAD_COMPONENTS,
                         default=self._default(CONF_LOAD_COMPONENTS),
-                    ): cv.multi_select(sorted(domains)),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=domain_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            sort=True,
+                        )
+                    ),
                     vol.Required(
                         CONF_SERVICE_PREFIX, default=self.config_entry.options.get(CONF_SERVICE_PREFIX) or slugify(self.config_entry.title)
                     ): str,
                     vol.Optional(
                         CONF_SERVICES,
                         default=self._default(CONF_SERVICES),
-                    ): cv.multi_select(remote.proxy_services.services),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=service_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
+            description_placeholders={
+                "components_count": str(len(domains)),
+                "services_count": str(len(remote.proxy_services.services))
+            }
         )
 
     async def async_step_domain_entity_filters(self, user_input=None):
@@ -268,6 +290,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return await self.async_step_general_filters()
 
         domains, entities = self._domains_and_entities()
+        organized_entities, entity_counts = self._organize_entities_with_counts(entities)
+        
+        # Create domain options with entity counts
+        domain_options = []
+        for domain in sorted(domains):
+            count = entity_counts.get(domain, 0)
+            domain_options.append({
+                "value": domain,
+                "label": f"{domain} ({count} entities)"
+            })
+        
+        # Create entity options grouped by domain
+        entity_options = self._create_grouped_options(entities, group_by_domain=True)
+        
         return self.async_show_form(
             step_id="domain_entity_filters",
             data_schema=vol.Schema(
@@ -275,21 +311,49 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_INCLUDE_DOMAINS,
                         default=self._default(CONF_INCLUDE_DOMAINS),
-                    ): cv.multi_select(domains),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=domain_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(
                         CONF_INCLUDE_ENTITIES,
                         default=self._default(CONF_INCLUDE_ENTITIES),
-                    ): cv.multi_select(entities),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=entity_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(
                         CONF_EXCLUDE_DOMAINS,
                         default=self._default(CONF_EXCLUDE_DOMAINS),
-                    ): cv.multi_select(domains),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=domain_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(
                         CONF_EXCLUDE_ENTITIES,
                         default=self._default(CONF_EXCLUDE_ENTITIES),
-                    ): cv.multi_select(entities),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=entity_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                 }
             ),
+            description_placeholders={
+                "total_entities": str(len(entities)),
+                "total_domains": str(len(domains))
+            }
         )
 
     async def async_step_general_filters(self, user_input=None):
@@ -354,21 +418,121 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
             selected = self._default(CONF_SUBSCRIBE_EVENTS)
 
+        event_options = [{"value": event, "label": event} 
+                        for event in sorted(self.events if self.events else [])]
+        
         return self.async_show_form(
             step_id="events",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
-                        CONF_SUBSCRIBE_EVENTS, default=selected
-                    ): cv.multi_select(self.events),
+                        CONF_SUBSCRIBE_EVENTS, default=selected,
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=event_options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            custom_value=True,  # Allow custom event names
+                        )
+                    ),
                     vol.Optional(ADD_NEW_EVENT): str,
                 }
             ),
+            description_placeholders={
+                "events_count": str(len(self.events) if self.events else 0)
+            }
         )
 
     def _default(self, conf):
         """Return default value for an option."""
         return self.config_entry.options.get(conf) or vol.UNDEFINED
+
+    def _create_grouped_options(self, items: list[str], group_by_domain: bool = True) -> list[dict[str, str]]:
+        """Create options list with optional domain grouping."""
+        if not group_by_domain:
+            return [{"value": item, "label": item} for item in sorted(items)]
+        
+        # Group by domain
+        grouped = {}
+        other_items = []
+        
+        for item in items:
+            if "." in item:
+                domain, name = item.split(".", 1)
+                if domain not in grouped:
+                    grouped[domain] = []
+                grouped[domain].append((item, name))
+            else:
+                other_items.append(item)
+        
+        # Build options list with group headers
+        options = []
+        for domain in sorted(grouped.keys()):
+            # Add domain header as disabled option for visual grouping
+            options.append({
+                "value": f"__{domain}__",
+                "label": f"━━━ {domain.upper()} ━━━",
+                "disabled": True
+            })
+            # Add items in this domain
+            for full_id, name in sorted(grouped[domain], key=lambda x: x[1]):
+                options.append({
+                    "value": full_id,
+                    "label": f"  {name}"
+                })
+        
+        # Add ungrouped items at the end
+        if other_items:
+            if options:  # Add separator if there are grouped items
+                options.append({
+                    "value": "__other__",
+                    "label": "━━━ OTHER ━━━",
+                    "disabled": True
+                })
+            for item in sorted(other_items):
+                options.append({"value": item, "label": item})
+        
+        return options
+    
+    def _organize_services(self, services: list[str]) -> list[str]:
+        """Organize services by domain for better display."""
+        # Group by domain
+        domain_services = {}
+        for service in services:
+            if "." in service:
+                domain, svc = service.split(".", 1)
+                if domain not in domain_services:
+                    domain_services[domain] = []
+                domain_services[domain].append(service)
+            else:
+                if "other" not in domain_services:
+                    domain_services["other"] = []
+                domain_services["other"].append(service)
+        
+        # Sort by domain and services within domain
+        result = []
+        for domain in sorted(domain_services.keys()):
+            result.extend(sorted(domain_services[domain]))
+        
+        return result
+    
+    def _organize_entities_with_counts(self, entities: list[str]) -> tuple[list[str], dict[str, int]]:
+        """Organize entities by domain and return counts."""
+        domain_entities = {}
+        for entity in entities:
+            domain = entity.split(".")[0]
+            if domain not in domain_entities:
+                domain_entities[domain] = []
+            domain_entities[domain].append(entity)
+        
+        # Sort by domain and entities within domain
+        result = []
+        counts = {}
+        for domain in sorted(domain_entities.keys()):
+            result.extend(sorted(domain_entities[domain]))
+            counts[domain] = len(domain_entities[domain])
+        
+        return result, counts
 
     def _domains_and_entities(self):
         """Return all entities and domains exposed by remote instance."""

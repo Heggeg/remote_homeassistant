@@ -34,21 +34,33 @@
     "step": {
       "init": {
         "title": "Basic Options (step 1/4)",
+        "description": "Configure prefixes and select services to proxy. The dropdown lists support search - just start typing to filter options.",
         "data": {
           "entity_prefix": "Entity prefix (optional)",
           "entity_friendly_name_prefix": "Entity name prefix (optional)",
           "load_components": "Load component (if not loaded)",
           "service_prefix": "Service prefix",
           "services": "Remote Services"
+        },
+        "data_description": {
+          "load_components": "Select domains to load. Type to search through {components_count} available domains.",
+          "services": "Select services to proxy from remote. Type to search through {services_count} available services."
         }
       },
       "domain_entity_filters": {
         "title": "Domain and entity filters (step 2/4)",
+        "description": "Select which domains and entities to include or exclude. All dropdowns support search - type to filter the lists. Found {total_domains} domains with {total_entities} entities.",
         "data": {
           "include_domains": "Include domains",
           "include_entities": "Include entities",
           "exclude_domains": "Exclude domains",
           "exclude_entities": "Exclude entities"
+        },
+        "data_description": {
+          "include_domains": "Include all entities from selected domains",
+          "include_entities": "Include specific entities (overrides domain exclusions)",
+          "exclude_domains": "Exclude all entities from selected domains",
+          "exclude_entities": "Exclude specific entities (overrides domain inclusions)"
         }
       },
       "general_filters": {
@@ -64,10 +76,14 @@
       },
       "events": {
         "title": "Subscribed events (step 4/4)",
-        "description": "Add a new subscribed event by entering its name in `Add new event` and press `Submit`. Remove existing events by unticking them in `Events`.\n\nLeave `Add new event` and press `Submit` to make no further changes.",
+        "description": "Select events to subscribe to from the dropdown (supports search). You can also type custom event names. Currently tracking {events_count} events.",
         "data": {
           "subscribe_events": "Events",
           "add_new_event": "Add new event"
+        },
+        "data_description": {
+          "subscribe_events": "Select or type event names to subscribe to",
+          "add_new_event": "Enter a custom event name to add to the list"
         }
       }
     },
