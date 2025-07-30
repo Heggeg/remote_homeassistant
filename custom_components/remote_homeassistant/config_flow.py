@@ -86,6 +86,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get options flow for this handler."""
+        _LOGGER.debug("async_get_options_flow called for entry: %s (unique_id: %s)", 
+                     config_entry.entry_id, config_entry.unique_id)
+        if config_entry.unique_id == REMOTE_ID:
+            _LOGGER.warning("Options flow not supported for remote node configuration")
+            return None
         return OptionsFlowHandler(config_entry)
 
     async def async_step_user(self, user_input=None):

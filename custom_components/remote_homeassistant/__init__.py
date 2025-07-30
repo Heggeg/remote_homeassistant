@@ -206,6 +206,8 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
     """Set up the remote_homeassistant component."""
     hass.data.setdefault(DOMAIN, {})
     
+    _LOGGER.info("Remote HA async_setup called")
+    
     # Register the discovery view for all instances
     hass.http.register_view(DiscoveryInfoView())
 
@@ -248,11 +250,14 @@ async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Remote Home-Assistant from a config entry."""
+    _LOGGER.info("Setting up Remote HA entry: %s (unique_id: %s)", entry.entry_id, entry.unique_id)
     _async_import_options_from_yaml(hass, entry)
     if entry.unique_id == REMOTE_ID:
+        _LOGGER.info("Setting up as remote node")
         hass.async_create_task(setup_remote_instance(hass))
         return True
     else:
+        _LOGGER.info("Setting up remote connection for entry: %s", entry.entry_id)
         remote = RemoteConnection(hass, entry)
 
         hass.data[DOMAIN][entry.entry_id] = {
