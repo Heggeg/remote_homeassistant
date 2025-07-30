@@ -11,6 +11,7 @@ class DiscoveryInfoView(HomeAssistantView):
 
     url = "/api/remote_homeassistant/discovery"
     name = "api:remote_homeassistant:discovery"
+    requires_auth = True
 
     async def get(self, request):
         """Get discovery information."""

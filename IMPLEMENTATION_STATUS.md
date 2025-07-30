@@ -4,9 +4,10 @@
 
 ### ✅ Completed
 1. **Fixed 400 Bad Request Error**
-   - Discovery endpoint is now properly registered in `async_setup()`
-   - Available for both main and remote instances
-   - This should resolve the configuration flow loading error
+   - Implemented fallback discovery mechanism
+   - Now works even if remote instance doesn't have the integration installed
+   - Uses standard Home Assistant API endpoints as fallback
+   - Provides clear error messages when remote setup is needed
 
 2. **Search Functionality Implemented**
    - Using Home Assistant's native `SelectSelector` with dropdown mode
