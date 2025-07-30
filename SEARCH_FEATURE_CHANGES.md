@@ -4,6 +4,11 @@
 
 This document describes the implementation of search functionality in the Remote Home Assistant integration's configuration flow GUI wizards. The enhancement addresses usability issues when dealing with Home Assistant instances that have many entities, services, and domains.
 
+## COMPLETED IMPLEMENTATION - 2025-07-30
+
+### Critical Bug Fix
+- **Fixed 400 Bad Request Error**: The discovery endpoint was not being registered for main instances, only remote instances. This has been fixed by moving the registration to `async_setup()`.
+
 ## Problem Statement
 
 Previously, the config flow used basic multi-select fields for:
@@ -25,26 +30,47 @@ We implemented searchable dropdown selectors using Home Assistant's native `Sele
 
 ## Technical Implementation
 
-### Key Changes to `config_flow.py`
+### Files Created/Modified
 
-1. **New imports**:
-   ```python
-   from homeassistant.helpers.selector import (
-       SelectSelector,
-       SelectSelectorConfig,
-       SelectSelectorMode,
-   )
-   ```
+1. **`custom_components/remote_homeassistant/__init__.py`**
+   - Fixed discovery endpoint registration by moving it to `async_setup()`
+   - Removed duplicate registration in `setup_remote_instance()`
 
-2. **New helper methods**:
-   - `_create_grouped_options()` - Creates organized dropdown options with domain grouping
-   - `_organize_entities_with_counts()` - Provides entity counts per domain
+2. **`custom_components/remote_homeassistant/config_flow.py`**
+   - Added import for new search selector module
+   - Replaced standard selectors with searchable versions
+   - Maintained backward compatibility
 
-3. **Updated schema builders**:
-   All multi-select fields now use `SelectSelector` with:
-   - `mode=SelectSelectorMode.DROPDOWN`
-   - `multiple=True`
-   - `custom_value=False` (except for events)
+3. **`custom_components/remote_homeassistant/search_selector.py`** (NEW)
+   - Created searchable selector configurations
+   - Domain-based organization with counts
+   - Search metadata for enhanced filtering
+   - Helper functions for entities, services, and domains
+
+4. **`custom_components/remote_homeassistant/frontend/searchable-select.js`** (NEW)
+   - Custom web component for enhanced UI
+   - Real-time search functionality
+   - Checkbox-based selection
+   - Bulk operations (Select All/Clear)
+
+### Key Implementation Details
+
+1. **Search Algorithm**:
+   - Case-insensitive substring matching
+   - Searches across entity ID, name, domain, and friendly names
+   - Real-time filtering as user types
+
+2. **Visual Organization**:
+   - Domain headers with entity/item counts
+   - Indented items under each domain
+   - Clear visual separation between domains
+
+3. **Selector Configuration**:
+   All multi-select fields now use enhanced selectors with:
+   - Search capability built-in
+   - Domain grouping for better organization
+   - Checkbox selection for better visibility
+   - Bulk selection operations
 
 ### User Experience Improvements
 

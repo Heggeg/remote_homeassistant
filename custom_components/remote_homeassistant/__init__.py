@@ -198,12 +198,16 @@ async def _async_update_config_entry_if_from_yaml(hass, entries_by_id, conf):
 
 
 async def setup_remote_instance(hass: HomeAssistant.core.HomeAssistant):
-    hass.http.register_view(DiscoveryInfoView())
+    """Set up remote instance-specific configurations."""
+    pass
 
 
 async def async_setup(hass: HomeAssistant.core.HomeAssistant, config: ConfigType):
     """Set up the remote_homeassistant component."""
     hass.data.setdefault(DOMAIN, {})
+    
+    # Register the discovery view for all instances
+    hass.http.register_view(DiscoveryInfoView())
 
     async def _handle_reload(service):
         """Handle reload service call."""

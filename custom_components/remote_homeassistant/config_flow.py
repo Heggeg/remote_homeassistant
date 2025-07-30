@@ -27,6 +27,11 @@ from .const import (CONF_ENTITY_PREFIX,  # pylint:disable=unused-import
 from .rest_api import (ApiProblem, CannotConnect, EndpointMissing, InvalidAuth,
                        UnsupportedVersion, async_get_discovery_info)
 from homeassistant.helpers import selector
+from .search_selector import (
+    create_service_search_selector,
+    create_entity_search_selector,
+    create_domain_search_selector,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -227,9 +232,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             CONF_REMOTE_CONNECTION
         ]
 
-        # Create service options with domain grouping for better organization
-        service_options = self._create_grouped_options(remote.proxy_services.services, group_by_domain=True)
-        domain_options = [{"value": d, "label": d} for d in sorted(domains)]
+        # Create service options with search functionality
+        service_selector = create_service_search_selector(
+            services=list(remote.proxy_services.services),
+            selected=self.config_entry.options.get(CONF_SERVICES, []),
+        )
+        
+        # Create domain selector with entity counts
+        _, entity_counts = self._organize_entities_with_counts(self._domains_and_entities()[1])
+        domain_selector = create_domain_search_selector(
+            domains=list(domains),
+            entity_counts=entity_counts,
+            selected=self.config_entry.options.get(CONF_LOAD_COMPONENTS, []),
+        )
         
         return self.async_show_form(
             step_id="init",
@@ -254,27 +269,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_LOAD_COMPONENTS,
                         default=self._default(CONF_LOAD_COMPONENTS),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=domain_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                            sort=True,
-                        )
-                    ),
+                    ): selector.selector(domain_selector),
                     vol.Required(
                         CONF_SERVICE_PREFIX, default=self.config_entry.options.get(CONF_SERVICE_PREFIX) or slugify(self.config_entry.title)
                     ): str,
                     vol.Optional(
                         CONF_SERVICES,
                         default=self._default(CONF_SERVICES),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=service_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
+                    ): selector.selector(service_selector),
                 }
             ),
             description_placeholders={
@@ -292,17 +294,31 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         domains, entities = self._domains_and_entities()
         organized_entities, entity_counts = self._organize_entities_with_counts(entities)
         
-        # Create domain options with entity counts
-        domain_options = []
-        for domain in sorted(domains):
-            count = entity_counts.get(domain, 0)
-            domain_options.append({
-                "value": domain,
-                "label": f"{domain} ({count} entities)"
-            })
+        # Create searchable selectors for domains and entities
+        include_domain_selector = create_domain_search_selector(
+            domains=domains,
+            entity_counts=entity_counts,
+            selected=self.config_entry.options.get(CONF_INCLUDE_DOMAINS, []),
+        )
         
-        # Create entity options grouped by domain
-        entity_options = self._create_grouped_options(entities, group_by_domain=True)
+        exclude_domain_selector = create_domain_search_selector(
+            domains=domains,
+            entity_counts=entity_counts,
+            selected=self.config_entry.options.get(CONF_EXCLUDE_DOMAINS, []),
+        )
+        
+        # Create entity selectors with search
+        include_entity_selector = create_entity_search_selector(
+            entities=entities,
+            selected=self.config_entry.options.get(CONF_INCLUDE_ENTITIES, []),
+            get_friendly_name=None,  # TODO: Add friendly name support
+        )
+        
+        exclude_entity_selector = create_entity_search_selector(
+            entities=entities,
+            selected=self.config_entry.options.get(CONF_EXCLUDE_ENTITIES, []),
+            get_friendly_name=None,  # TODO: Add friendly name support
+        )
         
         return self.async_show_form(
             step_id="domain_entity_filters",
@@ -311,43 +327,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_INCLUDE_DOMAINS,
                         default=self._default(CONF_INCLUDE_DOMAINS),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=domain_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
+                    ): selector.selector(include_domain_selector),
                     vol.Optional(
                         CONF_INCLUDE_ENTITIES,
                         default=self._default(CONF_INCLUDE_ENTITIES),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=entity_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
+                    ): selector.selector(include_entity_selector),
                     vol.Optional(
                         CONF_EXCLUDE_DOMAINS,
                         default=self._default(CONF_EXCLUDE_DOMAINS),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=domain_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
+                    ): selector.selector(exclude_domain_selector),
                     vol.Optional(
                         CONF_EXCLUDE_ENTITIES,
                         default=self._default(CONF_EXCLUDE_ENTITIES),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=entity_options,
-                            multiple=True,
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                        )
-                    ),
+                    ): selector.selector(exclude_entity_selector),
                 }
             ),
             description_placeholders={
