@@ -398,14 +398,20 @@ class RemoteConnection:
         return entity_friendly_name
 
     def _full_picture_url(self, url):
+        # If URL is already absolute (starts with http:// or https://), return as-is
+        if url.startswith(("http://", "https://")):
+            return url
+            
         baseURL = "%s://%s:%s" % (
             "https" if self._secure else "http",
             self._entry.data[CONF_HOST],
             self._entry.data[CONF_PORT],
         )
-        if url.startswith(baseURL) == False:
+        if not url.startswith(baseURL):
+            # For relative URLs, prepend the base URL
+            if not url.startswith("/"):
+                url = "/" + url
             url = baseURL + url
-            return url
         return url
  
     def set_connection_state(self, state):
