@@ -211,7 +211,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize remote_homeassistant options flow."""
-        self.config_entry = config_entry
+        super().__init__(config_entry)
         self.filters : list[Any] | None = None
         self.events : set[Any] | None = None
         self.options : dict[str, Any] | None = None
@@ -228,13 +228,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         domains, _ = self._domains_and_entities()
         domains = set(domains + self.config_entry.options.get(CONF_LOAD_COMPONENTS, []))
 
-        remote = self.hass.data[DOMAIN][self.config_entry.entry_id][
-            CONF_REMOTE_CONNECTION
-        ]
+        # Check if the integration data is available
+        try:
+            remote = self.hass.data[DOMAIN][self.config_entry.entry_id][
+                CONF_REMOTE_CONNECTION
+            ]
+            services_list = list(remote.proxy_services.services)
+        except (KeyError, AttributeError):
+            # If data is not available yet, use empty list
+            services_list = []
 
         # Create service options with search functionality
         service_selector = create_service_search_selector(
-            services=list(remote.proxy_services.services),
+            services=services_list,
             selected=self.config_entry.options.get(CONF_SERVICES, []),
         )
         
@@ -528,17 +534,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def _domains_and_entities(self):
         """Return all entities and domains exposed by remote instance."""
-        remote = self.hass.data[DOMAIN][self.config_entry.entry_id][
-            CONF_REMOTE_CONNECTION
-        ]
-
-        # Include entities we have in the config explicitly, otherwise they will be
-        # pre-selected and not possible to remove if they are no lobger present on
-        # the remote host.
+        # Include entities we have in the config explicitly
         include_entities = set(self.config_entry.options.get(CONF_INCLUDE_ENTITIES, []))
         exclude_entities = set(self.config_entry.options.get(CONF_EXCLUDE_ENTITIES, []))
-        entities = sorted(
-            remote._all_entity_names | include_entities | exclude_entities
-        )
-        domains = sorted(set([entity_id.split(".")[0] for entity_id in entities]))
+        
+        try:
+            remote = self.hass.data[DOMAIN][self.config_entry.entry_id][
+                CONF_REMOTE_CONNECTION
+            ]
+            all_entities = remote._all_entity_names | include_entities | exclude_entities
+        except (KeyError, AttributeError):
+            # If remote connection is not available, use only configured entities
+            all_entities = include_entities | exclude_entities
+        
+        entities = sorted(all_entities)
+        domains = sorted(set([entity_id.split(".")[0] for entity_id in entities if "." in entity_id]))
         return domains, entities
