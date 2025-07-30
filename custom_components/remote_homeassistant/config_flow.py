@@ -211,7 +211,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry):
         """Initialize remote_homeassistant options flow."""
-        super().__init__(config_entry)
+        # Don't call super().__init__() with parameters
+        # config_entry is stored automatically by Home Assistant
         self.filters : list[Any] | None = None
         self.events : set[Any] | None = None
         self.options : dict[str, Any] | None = None
